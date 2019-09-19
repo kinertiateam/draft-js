@@ -1,10 +1,8 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
- * All rights reserved.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  *
  * @format
  * @flow strict-local
@@ -17,8 +15,8 @@ import type DraftEditor from 'DraftEditor.react';
 
 const DraftJsDebugLogging = require('DraftJsDebugLogging');
 const EditorState = require('EditorState');
-const ReactDOM = require('ReactDOM');
 
+const getContentEditableContainer = require('getContentEditableContainer');
 const getDraftEditorSelection = require('getDraftEditorSelection');
 const invariant = require('invariant');
 const isHTMLElement = require('isHTMLElement');
@@ -50,7 +48,7 @@ function editOnSelect(editor: DraftEditor): void {
   );
   const documentSelection = getDraftEditorSelection(
     editorState,
-    editorNode.firstChild,
+    getContentEditableContainer(editor),
   );
   const updatedSelectionState = documentSelection.selectionState;
 

@@ -1,13 +1,11 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
- * All rights reserved.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  *
  * @format
- * @flow
+ * @flow strict-local
  * @emails oncall+draft_js
  */
 
@@ -30,7 +28,10 @@ function editOnBlur(editor: DraftEditor, e: SyntheticEvent<HTMLElement>): void {
   // element is `body` to force it when blurring occurs within the window (as
   // opposed to clicking to another tab or window).
   const {ownerDocument} = e.currentTarget;
-  if (getActiveElement(ownerDocument) === ownerDocument.body) {
+  if (
+    !Boolean(editor.props.preserveSelectionOnBlur) &&
+    getActiveElement(ownerDocument) === ownerDocument.body
+  ) {
     const selection = ownerDocument.defaultView.getSelection();
     const editorNode = editor.editor;
     if (

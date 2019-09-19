@@ -1,10 +1,8 @@
 /**
- * Copyright (c) 2013-present, Facebook, Inc.
- * All rights reserved.
+ * Copyright (c) Facebook, Inc. and its affiliates.
  *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
  *
  * @emails oncall+draft_js
  * @format
@@ -13,6 +11,7 @@
 'use strict';
 
 jest.disableAutomock();
+expect.addSnapshotSerializer(require('NonASCIIStringSnapshotSerializer'));
 
 jest.mock('generateRandomKey');
 
@@ -165,6 +164,34 @@ test('img with role presentation should not be rendered', () => {
   expect(blocks.contentBlocks).toMatchSnapshot();
 });
 
+test('line break should be correctly parsed - single <br>', () => {
+  const blocks = convertFromHTMLToContentBlocks(
+    `<div>
+      <b>Hello World!</b>
+      <br />
+      lorem ipsum
+    </div>`,
+  );
+  expect(blocks.contentBlocks).toMatchSnapshot();
+});
+
+test('line break should be correctly parsed - multiple <br> in a content block', () => {
+  const blocks = convertFromHTMLToContentBlocks(
+    `<div>
+      <b>Hello World!</b>
+      <br />
+      <br />
+      lorem ipsum
+    </div>`,
+  );
+  expect(blocks.contentBlocks).toMatchSnapshot();
+});
+
+test('highlighted text should be recognized and considered styled characters', () => {
+  const blocks = convertFromHTMLToContentBlocks(`<mark>test</mark>`);
+  expect(blocks.contentBlocks).toMatchSnapshot();
+});
+
 test('converts nested html blocks when experimentalTreeDataSupport is enabled', () => {
   const html_string = `
     <blockquote>
@@ -220,6 +247,22 @@ test('does not convert deeply nested html blocks when experimentalTreeDataSuppor
         </blockquote>
       </li>
     </ol>
+  `;
+
+  expect(AreTreeBlockNodesEquivalent(html_string)).toMatchSnapshot();
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: false,
+  });
+});
+
+test('eliminates useless blocks when experimentalTreeDataSupport is disabled', () => {
+  const html_string = `
+    <div>
+      <div>
+        <div>Hello</div>
+      </div>
+      <div>World</div>
+    </div>
   `;
 
   expect(AreTreeBlockNodesEquivalent(html_string)).toMatchSnapshot();
@@ -292,7 +335,7 @@ test('Should preserve entities for whitespace-only content', () => {
   });
 });
 
-test('Should import recognised draft li depths', () => {
+test('Should import recognised draft li depths when nesting disabled', () => {
   const html_string = `
     <ul>
       <li class="${cx('public/DraftStyleDefault/depth0')}">depth0</li>
@@ -307,14 +350,14 @@ test('Should import recognised draft li depths', () => {
   });
 });
 
-test('Should import recognised draft li depths when nesting enabled', () => {
+test('Should *not* import recognised draft li depths when nesting enabled', () => {
   const html_string = `
     <ul>
-      <li class="${cx('public/DraftStyleDefault/depth0')}">depth0</li>
-      <li class="${cx('public/DraftStyleDefault/depth1')}">depth1</li>
-      <li class="${cx('public/DraftStyleDefault/depth2')}">depth2</li>
-      <li class="${cx('public/DraftStyleDefault/depth3')}">depth3</li>
-      <li class="${cx('public/DraftStyleDefault/depth4')}">depth4</li>
+      <li class="${cx('public/DraftStyleDefault/depth0')}">depth0-0</li>
+      <li class="${cx('public/DraftStyleDefault/depth1')}">depth0-1</li>
+      <li class="${cx('public/DraftStyleDefault/depth2')}">depth0-2</li>
+      <li class="${cx('public/DraftStyleDefault/depth3')}">depth0-3</li>
+      <li class="${cx('public/DraftStyleDefault/depth4')}">depth0-4</li>
     </ul>
   `;
   assertConvertFromHTMLToContentBlocks(html_string, {
@@ -328,5 +371,119 @@ test('Should preserve spacing around inline tags', () => {
   `;
   assertConvertFromHTMLToContentBlocks(html_string, {
     experimentalTreeDataSupport: true,
+  });
+});
+
+test('Should scope attribute styles', () => {
+  const html_string = `
+    <span style="font-weight: 700">these</span>
+    <span style="font-style: italic">won't</span>
+    <span style="text-decoration: underline">accumulate styles</span>
+    <span style="font-weight: 700">
+      <span style="font-style: italic">
+        <span style="text-decoration: underline">
+          <span>but this span will</span>
+        </span>
+      </span>
+    </span>
+  `;
+
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: true,
+  });
+});
+
+test('Should recognized list deep nesting', () => {
+  const html_string = `
+    <ul>
+      <li>depth0-0</li>
+      <li>depth0-1</li>
+      <ul>
+        <li>depth1-0</li>
+      </ul>
+      <ol>
+        <li>depth1-1</li>
+        <ul>
+          <li>depth2-0</li>
+          <li>depth2-1</li>
+        </ul>
+      </ol>
+      <li>depth0-2</li>
+    </ul>
+    <ol>
+      <li>depth0-3</li>
+    </ol>
+  `;
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: false,
+  });
+});
+
+test('Should recognized list deep nesting when nesting enabled', () => {
+  const html_string = `
+    <ul>
+      <li>depth0-0</li>
+      <li>depth0-1</li>
+      <ul>
+        <li>depth1-0</li>
+      </ul>
+      <ol>
+        <li>depth1-1</li>
+        <ul>
+          <li>depth2-0</li>
+          <li>depth2-1</li>
+        </ul>
+      </ol>
+      <li>depth0-2</li>
+    </ul>
+    <ol>
+      <li>depth0-3</li>
+    </ol>
+  `;
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: true,
+  });
+});
+
+test('Should recognized and override html structure when having known draft-js classname with nesting disabled', () => {
+  const html_string = `
+    <ul>
+      <li class="${cx('public/DraftStyleDefault/depth0')}">depth0</li>
+      <ul>
+        <li class="${cx('public/DraftStyleDefault/depth1')}">depth1</li>
+        <li class="${cx('public/DraftStyleDefault/depth2')}">depth2</li>
+      </ul>
+      <li class="${cx('public/DraftStyleDefault/depth3')}">depth3</li>
+    </ul>
+  `;
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: false,
+  });
+});
+
+test('Should recognized and *not* override html structure when having known draft-js classname with nesting enabled', () => {
+  const html_string = `
+    <ul>
+      <li class="${cx('public/DraftStyleDefault/depth0')}">depth0-0</li>
+      <ul>
+        <li class="${cx('public/DraftStyleDefault/depth1')}">depth1-0</li>
+        <li class="${cx('public/DraftStyleDefault/depth2')}">depth1-1</li>
+      </ul>
+      <li class="${cx('public/DraftStyleDefault/depth3')}">depth0-1</li>
+    </ul>
+  `;
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: true,
+  });
+});
+
+test('Should import line breaks without creating a leading space', () => {
+  const html_string = `
+    Line 1<br/>
+    Line 2<br/>
+    Line 3
+  `;
+  assertConvertFromHTMLToContentBlocks(html_string, {
+    experimentalTreeDataSupport: false,
   });
 });
