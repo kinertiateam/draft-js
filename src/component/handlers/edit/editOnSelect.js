@@ -18,6 +18,8 @@ const EditorState = require('EditorState');
 
 const getContentEditableContainer = require('getContentEditableContainer');
 const getDraftEditorSelection = require('getDraftEditorSelection');
+const invariant = require('invariant');
+const isHTMLElement = require('isHTMLElement');
 
 function editOnSelect(editor: DraftEditor): void {
   if (
@@ -38,6 +40,12 @@ function editOnSelect(editor: DraftEditor): void {
   }
 
   let editorState = editor.props.editorState;
+  const editorNode = ReactDOM.findDOMNode(editor.editorContainer);
+  invariant(editorNode, 'Missing editorNode');
+  invariant(
+    isHTMLElement(editorNode.firstChild),
+    'editorNode.firstChild is not an HTMLElement',
+  );
   const documentSelection = getDraftEditorSelection(
     editorState,
     getContentEditableContainer(editor),
